@@ -1,0 +1,37 @@
+{
+  "name": "skeeks/cms-tracker",
+  "version": "1.0.0",
+  "description": "Cms Tracker",
+  "keywords": [
+    "module",
+    "cms",
+    "skeeks",
+    "sx",
+    "app",
+    "yii2"
+  ],
+  "homepage": "http://www.skeeks.com/",
+  "type": "yii2-extension",
+  "license": "BSD-3-Clause",
+  "authors": [
+    {
+      "name": "Alexey Melnik",
+      "email": "amelexik@gmail.com"
+    }
+  ],
+  "minimum-stability": "dev",
+  "require": {
+    "skeeks/cms": "^5.0.4 || dev-master",
+    "google/apiclient": "^2.0.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "skeeks\\modules\\cms\\tracker\\": "src/"
+    }
+  },
+  "extra": {
+    "config-plugin": {
+      "web": "src/config/web.php"
+    }
+  }
+}
