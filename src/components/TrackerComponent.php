@@ -274,20 +274,23 @@ class TrackerComponent extends Component
         if ($hitModel = CmsTrackerHits::find()->where(['type' => $type, 'model_class' => $model_class, 'pk' => $pk])->one()) {
 
             if ($type = self::HIT_TYPE_VIEW_COUNT && $this->canSyncGa($hitModel)) {
-                    $view_count = $this->pageViewsGa('ga:pageviews',
-                        'ga:pagePath',
-                        'ga:pagePath=~' . $model->getUrl()
-                    );
+                $view_count = $this->pageViewsGa('ga:pageviews',
+                    'ga:pagePath',
+                    'ga:pagePath=~' . $model->getUrl()
+                );
                 // устаавливаем значение счетчика от гугл аналитики
-                    if ((int)$view_count > 0) {
+                if ((int)$view_count > 0) {
                     $this->_setCounter($model, $hitModel, $view_count);
-                    }
+                } 
+                else {
+                    $this->_incrementCounter($model, $hitModel);
+                }
             } else {
                 $this->_incrementCounter($model, $hitModel);
-                }
+            }
         } else {
             $this->_incrementCounter($model);
-            }
+        }
     }
 
     /**
@@ -434,16 +437,16 @@ class TrackerComponent extends Component
 
         $profileId = \Yii::$app->tracker->gaProfileId;
         if (empty($profileId)) {
-            return true;
+            return false;
         }
 
         $key_path = \Yii::$app->tracker->gaApiKey;
         if (empty($key_path)) {
-            return true;
+            return false;
         }
         $key_path = \Yii::getAlias('@root') . $key_path;
         if (!preg_match('/\.json/', $key_path) || !file_exists($key_path)) {
-            return true;
+            return false;
         }
         //Для успешной работы необходимо
         //1.Создать проект и активировать аналитик АПИ https://console.developers.google.com
