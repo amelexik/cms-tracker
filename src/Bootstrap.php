@@ -22,7 +22,10 @@ class Bootstrap implements BootstrapInterface
             return;
 
 
-        $app->view->on(View::EVENT_AFTER_RENDER, function ($event) {
+        $app->view->on(View::EVENT_BEGIN_BODY, function ($event) {
+
+            // todo доработать проверку разрешения трекинга в cmsContent->is_count_views
+
             if ((bool)Yii::$app->tracker->enabled !== false) {
                 if (Yii::$app->response->statusCode == 200) {
                     $url = Yii::$app->request->pathInfo;
@@ -50,6 +53,10 @@ JS
 
     }
 
+    /**
+     * @return bool
+     * check backend
+     */
     public function getIsBackend()
     {
         return strpos(Yii::$app->request->pathInfo, '~sx') !== false;

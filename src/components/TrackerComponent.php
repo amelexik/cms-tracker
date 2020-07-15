@@ -197,8 +197,16 @@ class TrackerComponent extends Component
         if (!$url)
             return false;
 
-        if (preg_match('/\d+$/', $url, $matches)) {
-            if ($id = (int)$matches[0]) {
+        /**
+         * https://regex101.com/r/TYoY2P/1
+         * Regular Expression is available for 2 types of URI:
+         * 1) /zhivotnovodstvo/1568-mskh-proinspektiruet
+         * 2) /nasinnya-pshenicya-ozima/malanka-id9579
+         */
+
+        if (preg_match('/\/(\d+)\-|id(\d+)/', $url, $matches)) {
+
+            if ($id = (int)$matches[1]) {
                 if ($model = CmsContentElement::find()->where(['id' => $id])->active()->one()) {
 
                     $cookiesKey = md5($url);
@@ -223,7 +231,7 @@ class TrackerComponent extends Component
                     return true;
                 }
             }
-        }else{
+        } else {
 
             if ($model = CmsTree::find()->where(['dir' => $url])->one()) {
 
@@ -259,24 +267,41 @@ class TrackerComponent extends Component
      */
     public function updateHits($model, $type = self::HIT_TYPE_VIEW_COUNT)
     {
+
         $model_class = get_class($model);
         $pk = $model->primaryKey;
 
         if ($hitModel = CmsTrackerHits::find()->where(['type' => $type, 'model_class' => $model_class, 'pk' => $pk])->one()) {
-            if ($this->enableSyncGA && $type = self::HIT_TYPE_VIEW_COUNT) {
-                if ($this->canSyncGa($hitModel)) {
+
+            if ($type = self::HIT_TYPE_VIEW_COUNT && $this->canSyncGa($hitModel)) {
                     $view_count = $this->pageViewsGa('ga:pageviews',
                         'ga:pagePath',
                         'ga:pagePath=~' . $model->getUrl()
                     );
+                // устаавливаем значение счетчика от гугл аналитики
                     if ((int)$view_count > 0) {
-                        $hitModel->hits = $view_count;
-                        $hitModel->sync_at = time();
-                        $hitModel->save();
-                        return $hitModel;
+                    $this->_setCounter($model, $hitModel, $view_count);
                     }
+            } else {
+                $this->_incrementCounter($model, $hitModel);
                 }
+        } else {
+            $this->_incrementCounter($model);
             }
+    }
+
+    /**
+     * @param $model
+     * @param CmsTrackerHits $hitModel
+     * @return CmsTrackerHits
+     */
+    private function _incrementCounter($model, $hitModel = null, $type = self::HIT_TYPE_VIEW_COUNT)
+    {
+
+        $model_class = get_class($model);
+        $pk = $model->primaryKey;
+
+        if ($hitModel) {
             $hitModel->updateCounters(['hits' => 1]);
         } else {
             $hitModel = new CmsTrackerHits();
@@ -288,13 +313,72 @@ class TrackerComponent extends Component
             ];
             $hitModel->save();
         }
+
+        if ($this->_hasCounterColumn($model))
+            $model_class::updateAll(['show_counter' => $model->show_counter + 1, 'show_counter_start' => time()], ['id' => $model->id]);
+
         return $hitModel;
     }
 
+
+    /**
+     * Принудительно установить значения счетчика
+     * @param $model
+     * @param CmsTrackerHits $hitModel
+     */
+    private function _setCounter($model, $hitModel, int $value)
+    {
+
+        $model_class = get_class($model);
+        $pk = $model->primaryKey;
+
+        $hitModel->hits = $value;
+        $hitModel->sync_at = time();
+        $hitModel->save();
+
+        if ($this->_hasCounterColumn($model))
+            $model_class::updateAll(['show_counter' => $value, 'show_counter_start' => time()], ['id' => $pk]);
+
+        return $hitModel;
+    }
+
+    /**
+     * Можно ли использовать встроеную колонку счеткичка
+     * @param $model
+     * @return bool
+     */
+    private function _hasCounterColumn($model)
+    {
+        return isset($model->show_counter);
+    }
+
+    /**
+     * @param CmsContentElement $model
+     * @return bool
+     */
+    public function canTrackContentElement(CmsContentElement $model)
+    {
+        if ($cmsContent = $model->getCmsContent()) {
+            return boolval($cmsContent->is_count_views);
+        }
+        return true;
+    }
+
+
+    /**
+     * @param $model
+     * @param int $type
+     * @return int|null
+     */
     public function getHits($model, $type = self::HIT_TYPE_VIEW_COUNT)
     {
         $model_class = get_class($model);
         $pk = $model->primaryKey;
+
+        if ($type == self::HIT_TYPE_VIEW_COUNT) {
+            if ($this->_hasCounterColumn($model))
+                return $model->show_counter;
+        }
 
         if ($hitModel = CmsTrackerHits::find()->where(['type' => $type, 'model_class' => $model_class, 'pk' => $pk])->one()) {
             return $hitModel->hits;
