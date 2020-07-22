@@ -206,7 +206,9 @@ class TrackerComponent extends Component
 
         if (preg_match('/\/(\d+)\-|id(\d+)/', $url, $matches)) {
 
-            if ($id = (int)$matches[1]) {
+            $id = (int) $matches[1] ? $matches[1] : $matches[2];
+
+            if ($id) {
                 if ($model = CmsContentElement::find()->where(['id' => $id])->active()->one()) {
 
                     $cookiesKey = md5($url);
